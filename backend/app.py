@@ -126,6 +126,7 @@ def generate():
             font_size=int(request.form.get("font_size", "45") or 45),
             lock_font_size=request.form.get("lock_font_size", "true").lower() == "true",
             random_backgrounds=request.form.get("random_backgrounds", "true").lower() == "true",
+            caption_offset=int(request.form.get("caption_offset", "0") or 0),
         )
 
         # zip the output folder in memory

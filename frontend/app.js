@@ -279,7 +279,6 @@ async function writeFilesToDir(rootHandle, files) {
     await w.write(data);
     await w.close();
     count++;
-    if (count % 10 === 0) setStatus(`Saving… ${count} slides written`);
   }
   return count;
 }
@@ -289,12 +288,7 @@ function setStatus(msg, kind = "") {
   statusLine.className = "status-line" + (kind ? " " + kind : "");
 }
 
-genBtn.addEventListener("click", async () => {
-  const base = apiBase();
-  if (!base) return setStatus("Set your Render API address first.", "error");
-  if (!captionsInput.files[0]) return setStatus("Add a captions file.", "error");
-  if (!document.getElementById("backgrounds").files.length) return setStatus("Add at least one background image.", "error");
-
+function buildChunkForm(numPosts, captionOffset) {
   const fd = new FormData();
   fd.append("captions", captionsInput.files[0]);
   const fontFile = document.getElementById("font").files[0];
@@ -302,12 +296,12 @@ genBtn.addEventListener("click", async () => {
   for (const f of document.getElementById("backgrounds").files) fd.append("backgrounds", f);
   const cta = document.getElementById("cta").files[0];
   if (cta) fd.append("cta", cta);
-
   const colors = collectColors();
   fd.append("text_colors", JSON.stringify(colors.text));
   fd.append("bubble_colors", JSON.stringify(colors.bubble));
   fd.append("outline_colors", JSON.stringify(colors.outline));
-  fd.append("num_posts", document.getElementById("numPosts").value || "1");
+  fd.append("num_posts", String(numPosts));
+  fd.append("caption_offset", String(captionOffset));
   fd.append("font_size", document.getElementById("fontSize").value || "45");
   fd.append("lock_font_size", document.getElementById("lockSize").checked ? "true" : "false");
   fd.append("random_backgrounds", document.getElementById("randomBg").checked ? "true" : "false");
@@ -316,31 +310,56 @@ genBtn.addEventListener("click", async () => {
   fd.append("bubble_word_fill_color", bwFillPicker.getValue());
   const ctaSlide = document.getElementById("ctaSlide").value;
   if (ctaSlide) fd.append("cta_slide", ctaSlide);
+  return fd;
+}
+
+async function renderChunk(base, numPosts, captionOffset) {
+  const r = await fetch(base + "/generate", { method: "POST", body: buildChunkForm(numPosts, captionOffset) });
+  if (!r.ok) { let msg = "Something went wrong."; try { msg = (await r.json()).error || msg; } catch {} throw new Error(msg); }
+  return await r.blob();
+}
+
+genBtn.addEventListener("click", async () => {
+  const base = apiBase();
+  if (!base) return setStatus("Set your Render API address first.", "error");
+  if (!captionsInput.files[0]) return setStatus("Add a captions file.", "error");
+  if (!document.getElementById("backgrounds").files.length) return setStatus("Add at least one background image.", "error");
+
+  const total = Math.max(1, parseInt(document.getElementById("numPosts").value || "1", 10));
+  const batch = Math.max(1, parseInt(document.getElementById("batchSize").value || "5", 10));
 
   genBtn.disabled = true;
-  setStatus("Waking the server and rendering… first run after idle can take ~30s.");
   try {
-    const r = await fetch(base + "/generate", { method: "POST", body: fd });
-    if (!r.ok) { let msg = "Something went wrong."; try { msg = (await r.json()).error || msg; } catch {} throw new Error(msg); }
-    const blob = await r.blob();
-
     if (dirHandle) {
-      setStatus("Saving slides into your folder…");
+      // ask for write permission once, up front
       if (dirHandle.requestPermission) {
         const perm = await dirHandle.requestPermission({ mode: "readwrite" });
         if (perm !== "granted") throw new Error("Write permission to the folder was denied.");
       }
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      const files = fflate.unzipSync(buf);
-      const n = await writeFilesToDir(dirHandle, files);
-      setStatus(`Done — saved ${n} slides into "${dirName}".`, "ok");
+      let done = 0;
+      while (done < total) {
+        const thisChunk = Math.min(batch, total - done);
+        setStatus(`Rendering shows ${done + 1}–${done + thisChunk} of ${total}…${done === 0 ? " (first batch wakes the server, ~30s)" : ""}`);
+        const blob = await renderChunk(base, thisChunk, done);
+        const files = fflate.unzipSync(new Uint8Array(await blob.arrayBuffer()));
+        await writeFilesToDir(dirHandle, files);
+        done += thisChunk;
+        setStatus(`Saved ${done} / ${total} shows into "${dirName}"…`, "ok");
+      }
+      setStatus(`Done — ${total} shows saved into "${dirName}".`, "ok");
     } else {
+      // no folder chosen -> single request, zip download
+      setStatus("Waking the server and rendering… first run after idle can take ~30s.");
+      const blob = await renderChunk(base, total, 0);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = "slides.zip"; a.click();
       URL.revokeObjectURL(url);
-      setStatus("Done — slides.zip downloaded.", "ok");
+      setStatus("Done — slides.zip downloaded. (Tip: choose an output folder to run big batches 5 at a time.)", "ok");
     }
-  } catch (e) { setStatus(e.message, "error"); }
-  finally { genBtn.disabled = false; }
+  } catch (e) {
+    setStatus(`${e.message} — anything already saved is in your folder.`, "error");
+  } finally {
+    genBtn.disabled = false;
+  }
 });

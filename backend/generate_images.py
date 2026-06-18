@@ -269,6 +269,7 @@ def generate_slideshow(
     font_size=45,           # NEW: the size you pick is respected
     lock_font_size=True,    # NEW: keep text the same size across slides
     random_backgrounds=True,  # NEW: pick distinct random images per show
+    caption_offset=0,         # NEW: where to resume in the caption list (for batched runs)
 ):
     bubble_color_list = bubble_color_list or []
     text_color_list = text_color_list or []
@@ -297,13 +298,15 @@ def generate_slideshow(
     if n_rows == 0:
         raise ValueError("The captions file is empty.")
     total = max(1, int(num_posts))
-    seq_i = 0  # used only for non-random (in-order) cycling
+    offset = max(0, int(caption_offset))
+    seq_i = offset  # in-order background cycling also respects the offset
     made = 0
 
     for i in range(total):
-        # cycle through caption rows if more shows are requested than rows exist
-        r = i % n_rows
-        post_dir = os.path.join(output_folder, f"post_{i + 1:02d}")
+        # resume captions from the offset, cycling through rows as needed
+        r = (i + offset) % n_rows
+        # number folders continuously across batches: post_001, post_002, ...
+        post_dir = os.path.join(output_folder, f"post_{offset + i + 1:03d}")
         os.makedirs(post_dir, exist_ok=True)
 
         # the non-empty captions for this show, keeping their column index
