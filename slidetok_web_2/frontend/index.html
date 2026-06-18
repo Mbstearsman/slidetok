@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>slidetok — TikTok slide generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div class="brand">
+        <span class="brand-mark">slide<span class="brand-accent">tok</span></span>
+        <span class="status" id="apiStatus"><span class="dot"></span>checking…</span>
+      </div>
+      <p class="tagline">Drop in your captions, backgrounds and font. Get back a folder of 9:16 slides, every caption the same size.</p>
+    </header>
+
+    <!-- API connection -->
+    <section class="panel">
+      <span class="eyebrow">Connection</span>
+      <label class="field">
+        <span class="label">Render API address</span>
+        <input type="url" id="apiBase" placeholder="https://slidetok-api.onrender.com" />
+        <span class="hint">Paste your Render service URL once — it's remembered on this device.</span>
+      </label>
+    </section>
+
+    <!-- Files -->
+    <section class="panel">
+      <span class="eyebrow">Source files</span>
+
+      <label class="field">
+        <span class="label">Captions <span class="req">·</span> .csv, .ods or .xlsx</span>
+        <input type="file" id="captions" accept=".csv,.ods,.xlsx,.xlsm" />
+        <span class="hint">One row per post, one column per slide.</span>
+      </label>
+
+      <label class="field">
+        <span class="label">Background images <span class="req">·</span> one or more</span>
+        <input type="file" id="backgrounds" accept="image/*" multiple />
+      </label>
+
+      <label class="field">
+        <span class="label">Font <span class="muted">· optional · .ttf</span></span>
+        <input type="file" id="font" accept=".ttf,.otf" />
+        <span class="hint">Leave empty to use the built-in TikTok-style font (Montserrat).</span>
+      </label>
+
+      <label class="field">
+        <span class="label">CTA image <span class="muted">· optional</span></span>
+        <input type="file" id="cta" accept="image/*" />
+      </label>
+    </section>
+
+    <!-- Settings -->
+    <section class="panel">
+      <span class="eyebrow">Settings</span>
+      <div class="grid">
+        <label class="field">
+          <span class="label">Posts to generate</span>
+          <input type="number" id="numPosts" min="1" value="1" />
+        </label>
+        <label class="field">
+          <span class="label">Font size (px)</span>
+          <input type="number" id="fontSize" min="8" value="45" />
+        </label>
+        <label class="field">
+          <span class="label">CTA on slide # <span class="muted">· optional</span></span>
+          <input type="number" id="ctaSlide" min="1" placeholder="—" />
+        </label>
+      </div>
+
+      <label class="toggle">
+        <input type="checkbox" id="lockSize" checked />
+        <span>Keep text the same size on every slide (wrap long captions instead of shrinking)</span>
+      </label>
+
+      <label class="toggle">
+        <input type="checkbox" id="randomBg" checked />
+        <span>Randomize backgrounds — pick distinct images per slideshow, never repeating one within a show</span>
+      </label>
+
+      <label class="field">
+        <span class="label">Highlighted words <span class="muted">· comma-separated</span></span>
+        <input type="text" id="bubbleWords" placeholder="SALE, FREE, NOW" />
+      </label>
+
+      <div class="grid">
+        <div class="field">
+          <span class="label">Highlight text</span>
+          <div id="bwTextMount"></div>
+        </div>
+        <div class="field">
+          <span class="label">Highlight fill</span>
+          <div id="bwFillMount"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Per-slide colours -->
+    <section class="panel" id="slidePanel" hidden>
+      <span class="eyebrow">Per-slide colors</span>
+      <p class="hint">Filled in after your captions load. Leave bubble or outline on <strong>None</strong> to skip them.</p>
+      <div id="slideRows" class="slide-rows"></div>
+    </section>
+
+    <!-- Output destination -->
+    <section class="panel" id="outputPanel">
+      <span class="eyebrow">Output</span>
+      <div class="output-row">
+        <button id="chooseFolder" type="button" class="secondary-btn">Choose output folder…</button>
+        <span id="folderLabel" class="hint">No folder chosen — slides will download as a zip.</span>
+      </div>
+    </section>
+
+    <div class="actionbar">
+      <button id="generate" class="generate">Generate slides</button>
+      <p class="status-line" id="statusLine"></p>
+    </div>
+
+    <footer class="foot">slidetok · runs on your own Netlify + Render</footer>
+  </main>
+
+  <script src="fflate.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
