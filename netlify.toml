@@ -1,0 +1,4 @@
+# Netlify deploys the static frontend. No build step needed.
+[build]
+  base = "frontend"
+  publish = "."
